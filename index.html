@@ -90,8 +90,6 @@
   @media (max-width:759px){
     .tabs-in{justify-content:stretch}
     .tab{flex:1;padding:0 8px}
-    .hero-chips{flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none;padding-bottom:2px;margin-right:-4px}
-    .hero-chips::-webkit-scrollbar{display:none}
   }
   .tab svg{width:15px;height:15px}
   .tab:hover{color:var(--txt);background:rgba(255,255,255,.035)}
@@ -119,8 +117,8 @@
   /* hero */
   .hero{display:flex;gap:14px;align-items:center;flex-wrap:wrap;
     background:linear-gradient(135deg,rgba(22,45,72,.95),rgba(13,26,42,.95));border-color:var(--line2)}
-  .ring{position:relative;width:112px;height:112px;flex:0 0 auto}
-  .ring svg{width:112px;height:112px;transform:rotate(-90deg);display:block}
+  .ring{position:relative;width:104px;height:104px;flex:0 0 auto}
+  .ring svg{width:104px;height:104px;transform:rotate(-90deg);display:block}
   .ring-txt{position:absolute;inset:0;display:grid;place-content:center;text-align:center}
   .ring-txt b{font-size:24px;font-weight:750;letter-spacing:-.03em;display:block;line-height:1}
   .ring-txt small{font-size:9px;letter-spacing:.12em;text-transform:uppercase;color:var(--dim);margin-top:5px;display:block}
@@ -128,6 +126,11 @@
   .hero-body h2{margin-bottom:5px;font-size:16.5px}
   .hero-body p{font-size:12px;color:var(--mut)}
   .hero-chips{display:flex;gap:6px;flex-wrap:wrap;margin-top:10px}
+  @media (max-width:759px){
+    .hero-chips{flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none;padding-bottom:2px;margin-right:-4px;
+      -webkit-mask-image:linear-gradient(to right,#000 88%,transparent 100%);mask-image:linear-gradient(to right,#000 88%,transparent 100%)}
+    .hero-chips::-webkit-scrollbar{display:none}
+  }
   .chip{display:inline-flex;align-items:center;gap:5px;font-size:11px;font-weight:600;padding:4px 9px;border-radius:999px;
     background:rgba(255,255,255,.04);border:1px solid var(--line);color:var(--mut);white-space:nowrap}
   .chip i{width:6px;height:6px;border-radius:50%;background:currentColor;display:block}
