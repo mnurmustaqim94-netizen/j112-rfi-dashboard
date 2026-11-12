@@ -1,0 +1,1227 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>J112 · RFI Dashboard</title>
+<meta name="description" content="Live RFI tracker for J112 precast works — beam, plank, parapet and cable through. RFI numbers, coverage and delivery status straight from the master sheet.">
+<meta name="theme-color" content="#060a12">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta property="og:title" content="J112 · RFI Dashboard">
+<meta property="og:description" content="Live RFI tracker — RFI numbers, coverage and delivery status.">
+<meta property="og:type" content="website">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%230f1a2b'/%3E%3Cpath d='M14 44V20h7l11 14 11-14h7v24h-6V31L32 45 20 31v13z' fill='%232ee6a8'/%3E%3C/svg%3E">
+<style>
+  :root{
+    --bg:#060a12; --panel:#0f1a2b; --panel2:#14233a; --line:#1d2f49; --line2:#27405f;
+    --txt:#e9f0fb; --mut:#8ba4c2; --dim:#5f7899;
+    --mint:#2ee6a8; --blue:#4da3ff; --amber:#ffb454; --violet:#a78bfa; --cyan:#38d9f5; --red:#ff6b7a;
+    --r:16px;
+  }
+  *{box-sizing:border-box}
+  html,body{height:100%}
+  body{
+    margin:0; color:var(--txt);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;
+    font-size:14px; line-height:1.45;
+    background:
+      radial-gradient(1100px 520px at 12% -8%, #123055 0%, rgba(18,48,85,0) 62%),
+      radial-gradient(900px 480px at 102% -4%, #0e3a37 0%, rgba(14,58,55,0) 58%),
+      var(--bg);
+    background-attachment:fixed;
+    -webkit-text-size-adjust:100%;
+    padding-bottom:env(safe-area-inset-bottom);
+  }
+  h1,h2,h3,h4{margin:0;line-height:1.2;letter-spacing:-.01em}
+  h1{font-size:17px;font-weight:700}
+  h2{font-size:19px;font-weight:700}
+  h3{font-size:14px;font-weight:650}
+  p{margin:0}
+  button{font:inherit;color:inherit;cursor:pointer}
+  a{color:var(--cyan);text-decoration:none}
+  .num{font-variant-numeric:tabular-nums}
+  .wrap{max-width:1180px;margin:0 auto;padding:0 14px}
+  .muted{color:var(--mut)}
+  .dim{color:var(--dim)}
+
+  /* ---------- header ---------- */
+  header.top{padding:16px 0 10px}
+  .brand{display:flex;align-items:center;gap:11px;min-width:0}
+  .logo{
+    flex:0 0 auto;width:42px;height:42px;border-radius:13px;display:grid;place-items:center;
+    font-weight:800;font-size:13px;letter-spacing:.02em;color:#04140f;
+    background:linear-gradient(145deg,#5cf3c0,#19c78a);
+    box-shadow:0 6px 18px rgba(46,230,168,.22), inset 0 1px 0 rgba(255,255,255,.45);
+  }
+  .brand-txt{min-width:0}
+  .brand-txt p{font-size:10.5px;letter-spacing:.09em;text-transform:uppercase;color:var(--dim);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .top-row{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}
+  .top-actions{display:flex;align-items:center;gap:8px}
+  .iconbtn{
+    display:inline-flex;align-items:center;gap:7px;height:38px;padding:0 12px;
+    background:var(--panel);border:1px solid var(--line);border-radius:11px;color:var(--mut);
+    transition:.15s border-color,.15s color,.15s background;
+  }
+  .iconbtn:hover{border-color:var(--line2);color:var(--txt);background:var(--panel2)}
+  .iconbtn:active{transform:scale(.97)}
+  .iconbtn svg{width:16px;height:16px;display:block}
+  .iconbtn .lbl{font-size:12.5px;font-weight:600}
+  .spin{animation:spin 1s linear infinite}
+  @keyframes spin{to{transform:rotate(360deg)}}
+  @media (max-width:560px){ .iconbtn .lbl{display:none} .iconbtn{padding:0 11px} }
+
+  .live{display:inline-flex;align-items:center;gap:7px;font-size:11.5px;font-weight:600;color:var(--mut);
+    background:rgba(46,230,168,.07);border:1px solid rgba(46,230,168,.22);padding:6px 10px;border-radius:999px;white-space:nowrap}
+  .live .dot{width:7px;height:7px;border-radius:50%;background:var(--mint);box-shadow:0 0 0 0 rgba(46,230,168,.55);animation:pulse 2.4s infinite}
+  .live[data-state="snapshot"]{background:rgba(255,180,84,.08);border-color:rgba(255,180,84,.3);color:#ffcf92}
+  .live[data-state="snapshot"] .dot{background:var(--amber);animation:none;box-shadow:none}
+  .live[data-state="loading"]{background:rgba(77,163,255,.08);border-color:rgba(77,163,255,.28);color:#a9ccff}
+  .live[data-state="loading"] .dot{background:var(--blue)}
+  @keyframes pulse{0%{box-shadow:0 0 0 0 rgba(46,230,168,.5)}70%{box-shadow:0 0 0 7px rgba(46,230,168,0)}100%{box-shadow:0 0 0 0 rgba(46,230,168,0)}}
+
+  /* ---------- tabs ---------- */
+  .tabs{position:sticky;top:0;z-index:40;margin-top:14px;
+    background:rgba(6,10,18,.82);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);
+    border-bottom:1px solid var(--line)}
+  .tabs-in{max-width:1180px;margin:0 auto;padding:8px 14px;display:flex;gap:6px;justify-content:center}
+  .tab{flex:0 1 auto;height:38px;padding:0 20px;border:1px solid transparent;border-radius:10px;background:transparent;color:var(--mut);
+    font-size:12.5px;font-weight:650;letter-spacing:.01em;display:inline-flex;align-items:center;justify-content:center;gap:7px;transition:.15s}
+  @media (max-width:759px){
+    .tabs-in{justify-content:stretch}
+    .tab{flex:1;padding:0 8px}
+    .hero-chips{flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none;padding-bottom:2px;margin-right:-4px}
+    .hero-chips::-webkit-scrollbar{display:none}
+  }
+  .tab svg{width:15px;height:15px}
+  .tab:hover{color:var(--txt);background:rgba(255,255,255,.035)}
+  .tab[aria-selected="true"]{background:var(--panel2);border-color:var(--line2);color:#fff;box-shadow:inset 0 1px 0 rgba(255,255,255,.05)}
+  .tab span.t{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  @media (max-width:420px){ .tab span.t{font-size:12px} .tab svg{display:none} }
+
+  /* ---------- generic ---------- */
+  main{padding:16px 0 60px}
+  .view[hidden]{display:none}
+  .card{background:linear-gradient(180deg,rgba(20,33,54,.92),rgba(13,23,38,.92));
+    border:1px solid var(--line);border-radius:var(--r);padding:15px;position:relative}
+  .card-h{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:12px}
+  .card-h h3{font-size:12px;letter-spacing:.09em;text-transform:uppercase;color:var(--mut);font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  @media (max-width:430px){ .card-h .note{display:none} }
+  .section{margin-bottom:14px}
+  .grid{display:grid;gap:11px}
+  .g4{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .g2{grid-template-columns:1fr}
+  @media (min-width:760px){
+    .g4{grid-template-columns:repeat(4,minmax(0,1fr))}
+    .g2{grid-template-columns:1.05fr .95fr}
+  }
+
+  /* hero */
+  .hero{display:flex;gap:14px;align-items:center;flex-wrap:wrap;
+    background:linear-gradient(135deg,rgba(22,45,72,.95),rgba(13,26,42,.95));border-color:var(--line2)}
+  .ring{position:relative;width:112px;height:112px;flex:0 0 auto}
+  .ring svg{width:112px;height:112px;transform:rotate(-90deg);display:block}
+  .ring-txt{position:absolute;inset:0;display:grid;place-content:center;text-align:center}
+  .ring-txt b{font-size:24px;font-weight:750;letter-spacing:-.03em;display:block;line-height:1}
+  .ring-txt small{font-size:9px;letter-spacing:.12em;text-transform:uppercase;color:var(--dim);margin-top:5px;display:block}
+  .hero-body{flex:1 1 155px;min-width:0}
+  .hero-body h2{margin-bottom:5px;font-size:16.5px}
+  .hero-body p{font-size:12px;color:var(--mut)}
+  .hero-chips{display:flex;gap:6px;flex-wrap:wrap;margin-top:10px}
+  .chip{display:inline-flex;align-items:center;gap:5px;font-size:11px;font-weight:600;padding:4px 9px;border-radius:999px;
+    background:rgba(255,255,255,.04);border:1px solid var(--line);color:var(--mut);white-space:nowrap}
+  .chip i{width:6px;height:6px;border-radius:50%;background:currentColor;display:block}
+  button.chip{transition:.14s}
+  button.chip:hover{border-color:var(--line2);background:rgba(255,255,255,.07);color:var(--txt)}
+  @media (min-width:760px){
+    .ring,.ring svg{width:132px;height:132px}
+    .ring-txt b{font-size:27px}
+    .hero-body{flex:1 1 240px}
+    .hero-body h2{font-size:19px}
+  }
+
+  /* kpi */
+  .kpi{background:linear-gradient(180deg,rgba(20,33,54,.9),rgba(12,22,36,.9));border:1px solid var(--line);
+    border-radius:14px;padding:13px;text-align:left;position:relative;overflow:hidden;width:100%;color:inherit;transition:.15s}
+  .kpi:hover{border-color:var(--line2);background:linear-gradient(180deg,rgba(24,40,64,.95),rgba(14,25,42,.95))}
+  .kpi:active{transform:scale(.99)}
+  .kpi .k{font-size:10px;letter-spacing:.085em;text-transform:uppercase;color:var(--dim);font-weight:700;display:flex;align-items:center;gap:6px}
+  .kpi .v{font-size:26px;font-weight:750;letter-spacing:-.03em;margin-top:7px;line-height:1}
+  .kpi .s{font-size:11.5px;color:var(--mut);margin-top:6px}
+  .kpi .s b{color:var(--txt);font-weight:650}
+  .kpi.accent{border-color:rgba(46,230,168,.26)}
+  .kpi.accent .v{color:var(--mint)}
+  .kpi.warn{border-color:rgba(255,180,84,.24)}
+  .kpi.warn .v{color:var(--amber)}
+  .kpi.info .v{color:var(--blue)}
+  .kpi.arrow::after{content:"";position:absolute;right:12px;top:12px;width:7px;height:7px;border-top:1.5px solid var(--dim);border-right:1.5px solid var(--dim);transform:rotate(45deg);opacity:.7}
+
+  /* coverage rows */
+  .cov{display:flex;flex-direction:column;gap:13px}
+  .cov-row .cl{display:flex;align-items:baseline;justify-content:space-between;gap:8px;margin-bottom:6px}
+  .cov-row .nm{font-size:12.5px;font-weight:650;display:flex;align-items:center;gap:7px}
+  .cov-row .nm i{width:7px;height:7px;border-radius:2px;display:block}
+  .cov-row .vv{font-size:11.5px;color:var(--mut)}
+  .cov-row .vv b{color:var(--txt);font-weight:650}
+  .bar{height:8px;border-radius:99px;background:rgba(255,255,255,.055);overflow:hidden;position:relative}
+  .bar>span{display:block;height:100%;border-radius:99px;background:linear-gradient(90deg,#1fd39a,#5cf3c0);transition:width .5s cubic-bezier(.4,0,.2,1)}
+  .bar.blue>span{background:linear-gradient(90deg,#2f7ee0,#63b3ff)}
+  .bar.amber>span{background:linear-gradient(90deg,#e09a34,#ffc670)}
+  .bar.violet>span{background:linear-gradient(90deg,#7c5cf0,#b6a1ff)}
+  .bar.pap>span{background:linear-gradient(90deg,#d98a2b,#f5b95c)}
+
+  /* donut */
+  .status-wrap{display:flex;gap:16px;align-items:center;flex-wrap:wrap}
+  .donut{position:relative;width:112px;height:112px;flex:0 0 auto}
+  .donut-txt{position:absolute;inset:0;display:grid;place-content:center;text-align:center}
+  .donut-txt b{font-size:18px;font-weight:750;line-height:1}
+  .donut-txt small{font-size:9px;letter-spacing:.1em;color:var(--dim);text-transform:uppercase}
+  .legend{flex:1 1 150px;display:flex;flex-direction:column;gap:8px;min-width:150px}
+  .lg{display:flex;align-items:center;gap:8px;font-size:12px}
+  .lg i{width:8px;height:8px;border-radius:2px;flex:0 0 auto}
+  .lg .n{margin-left:auto;font-weight:650;font-variant-numeric:tabular-nums}
+  .lg .pc{color:var(--dim);font-size:11px;width:38px;text-align:right;font-variant-numeric:tabular-nums}
+
+  /* bars chart */
+  .chart{display:flex;align-items:flex-end;gap:3px;height:98px;margin-top:6px}
+  .cbar{flex:1;display:flex;flex-direction:column;justify-content:flex-end;align-items:center;gap:0;min-width:0;position:relative}
+  .cbar .b{width:100%;max-width:26px;border-radius:4px 4px 2px 2px;background:linear-gradient(180deg,#4da3ff,#2b6fc4);min-height:3px;transition:height .4s}
+  .cbar:hover .b{background:linear-gradient(180deg,#6bb9ff,#3a83dd)}
+  .cbar .l{font-size:8.5px;color:var(--dim);margin-top:5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;width:100%;text-align:center}
+  .chart-foot{display:flex;justify-content:space-between;font-size:10.5px;color:var(--dim);margin-top:8px}
+
+  /* lists */
+  .list{display:flex;flex-direction:column;gap:9px}
+  .lrow{display:flex;align-items:center;gap:10px}
+  .lrow .idx{font-size:10.5px;color:var(--dim);width:14px;flex:0 0 auto;font-variant-numeric:tabular-nums}
+  .lrow .mid{flex:1;min-width:0}
+  .lrow .t{display:flex;align-items:baseline;justify-content:space-between;gap:8px;margin-bottom:4px}
+  .lrow .t b{font-size:12px;font-weight:650;letter-spacing:.01em}
+  .lrow .t span{font-size:10.5px;color:var(--mut);white-space:nowrap}
+
+  /* ---------- toolbar / register ---------- */
+  .toolbar{display:flex;flex-direction:column;gap:9px;margin-bottom:12px}
+  .search{position:relative}
+  .search svg{position:absolute;left:12px;top:50%;transform:translateY(-50%);width:15px;height:15px;color:var(--dim);pointer-events:none}
+  .search input{width:100%;height:42px;padding:0 38px 0 36px;border-radius:12px;border:1px solid var(--line);
+    background:var(--panel);color:var(--txt);font-size:14px;outline:none;transition:.15s}
+  .search input::placeholder{color:var(--dim)}
+  .search input:focus{border-color:#2f6f9e;box-shadow:0 0 0 3px rgba(77,163,255,.14)}
+  .search .clr{position:absolute;right:8px;top:50%;transform:translateY(-50%);width:26px;height:26px;border:0;border-radius:8px;background:rgba(255,255,255,.06);color:var(--mut);display:none;place-items:center}
+  .search .clr.on{display:grid}
+  .filters{display:flex;gap:6px;overflow-x:auto;padding-bottom:2px;scrollbar-width:none}
+  .filters::-webkit-scrollbar{display:none}
+  .fchip{flex:0 0 auto;display:inline-flex;align-items:center;gap:6px;height:31px;padding:0 11px;border-radius:999px;
+    border:1px solid var(--line);background:rgba(255,255,255,.025);color:var(--mut);font-size:11.5px;font-weight:600;transition:.15s}
+  .fchip i{width:6px;height:6px;border-radius:50%;background:currentColor;opacity:.9}
+  .fchip:hover{border-color:var(--line2);color:var(--txt)}
+  .fchip[aria-pressed="true"]{background:rgba(77,163,255,.13);border-color:rgba(77,163,255,.4);color:#cfe5ff}
+  .fchip .c{font-size:10px;opacity:.7;font-variant-numeric:tabular-nums}
+  .rowmeta{display:flex;align-items:center;justify-content:space-between;gap:10px;margin:2px 0 10px;flex-wrap:wrap}
+  .rowmeta .cnt{font-size:11.5px;color:var(--mut)}
+  .rowmeta .cnt b{color:var(--txt)}
+  select.sel{height:32px;border-radius:9px;border:1px solid var(--line);background:var(--panel2);color:var(--txt);
+    font-size:11.5px;font-weight:600;padding:0 8px;outline:none;max-width:100%}
+
+  /* RFI cards */
+  .rfi-list{display:flex;flex-direction:column;gap:8px}
+  @media (min-width:900px){
+    .rfi-list{display:grid;grid-template-columns:1fr 1fr;gap:9px}
+    .search{max-width:520px}
+  }
+  .rfi{width:100%;text-align:left;background:linear-gradient(180deg,rgba(20,33,54,.72),rgba(13,23,38,.72));
+    border:1px solid var(--line);border-radius:13px;padding:11px 12px;transition:.14s;display:block;color:inherit}
+  .rfi:hover{border-color:var(--line2);background:linear-gradient(180deg,rgba(25,41,66,.9),rgba(15,27,45,.9));transform:translateY(-1px)}
+  .rfi:active{transform:none}
+  .rfi-top{display:flex;align-items:center;gap:9px;flex-wrap:wrap}
+  .rfi-no{font-size:15.5px;font-weight:750;letter-spacing:-.01em;font-variant-numeric:tabular-nums;
+    padding:2px 8px;border-radius:7px;background:rgba(77,163,255,.12);border:1px solid rgba(77,163,255,.26);color:#bcdcff}
+  .rfi[data-k="revise"] .rfi-no{background:rgba(255,180,84,.12);border-color:rgba(255,180,84,.3);color:#ffd39a}
+  .rfi[data-k="post"] .rfi-no{background:rgba(167,139,250,.12);border-color:rgba(167,139,250,.3);color:#d8caff}
+  .rfi[data-k^="delivery"] .rfi-no{background:rgba(46,230,168,.1);border-color:rgba(46,230,168,.26);color:#a7f3d7}
+  .rfi-kind{font-size:10px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:var(--dim)}
+  .rfi-body{display:flex;align-items:center;gap:10px;margin-top:8px}
+  .rfi-body .meta{font-size:11.5px;color:var(--mut);flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .rfi-body .meta b{color:var(--txt);font-weight:650}
+  .mini-bar{width:64px;flex:0 0 auto;height:6px;border-radius:99px;background:rgba(255,255,255,.07);overflow:hidden}
+  .mini-bar span{display:block;height:100%;background:linear-gradient(90deg,#1fd39a,#5cf3c0);border-radius:99px}
+  .rfi-pct{font-size:11px;font-weight:650;color:var(--mint);width:34px;text-align:right;flex:0 0 auto;font-variant-numeric:tabular-nums}
+  @media (max-width:420px){ .mini-bar{width:44px} }
+
+  .more{width:100%;height:44px;margin-top:10px;border-radius:12px;border:1px dashed var(--line2);
+    background:rgba(255,255,255,.02);color:var(--mut);font-size:12.5px;font-weight:650}
+  .more:hover{color:var(--txt);border-color:#3a5a80}
+  @media (min-width:900px){
+    #partList{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+  }
+  .empty{padding:30px 16px;text-align:center;color:var(--dim);font-size:12.5px}
+
+  /* parts */
+  .part{display:grid;grid-template-columns:1fr auto;gap:2px 10px;padding:10px 12px;border:1px solid var(--line);
+    border-radius:12px;background:rgba(18,30,49,.66)}
+  .part .p1{font-size:12.5px;font-weight:650;display:flex;align-items:center;gap:7px;flex-wrap:wrap;min-width:0}
+  .part .p1 .ty{font-size:10.5px;color:var(--dim);font-weight:600;letter-spacing:.03em}
+  .part .p2{grid-column:1/-1;font-size:11.5px;color:var(--mut);display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+  .part .p2 .sep{color:var(--line2)}
+  .stt{font-size:9.5px;font-weight:750;letter-spacing:.055em;padding:2.5px 7px;border-radius:6px;white-space:nowrap}
+  .stt.DELIVERED{color:#8cf3cf;background:rgba(46,230,168,.1);border:1px solid rgba(46,230,168,.22)}
+  .stt.CASTED{color:#a9ccff;background:rgba(77,163,255,.1);border:1px solid rgba(77,163,255,.22)}
+  .stt.NA{color:#9fb0c6;background:rgba(255,255,255,.05);border:1px solid var(--line)}
+  .rfi-tag{font-size:10.5px;font-weight:650;color:#cfe5ff;background:rgba(77,163,255,.09);border:1px solid rgba(77,163,255,.2);padding:1.5px 6px;border-radius:5px;font-variant-numeric:tabular-nums}
+
+  /* sheet / drawer */
+  .sheet-wrap{position:fixed;inset:0;z-index:100;display:flex;align-items:flex-end;justify-content:center}
+  .sheet-wrap[hidden]{display:none}
+  .sheet-bg{position:absolute;inset:0;background:rgba(3,6,11,.66);backdrop-filter:blur(3px);animation:fade .2s}
+  .sheet{position:relative;width:100%;max-width:640px;max-height:88vh;overflow:auto;
+    background:linear-gradient(180deg,#101c2e,#0b1421);border:1px solid var(--line2);border-bottom:0;
+    border-radius:20px 20px 0 0;padding:16px 16px calc(22px + env(safe-area-inset-bottom));
+    box-shadow:0 -18px 50px rgba(0,0,0,.5);animation:up .24s cubic-bezier(.2,.8,.2,1)}
+  @keyframes up{from{transform:translateY(24px);opacity:.6}to{transform:none;opacity:1}}
+  @keyframes fade{from{opacity:0}to{opacity:1}}
+  .sheet-h{display:flex;align-items:flex-start;gap:10px;margin-bottom:4px;position:sticky;top:-16px;padding:6px 0 10px;
+    background:linear-gradient(180deg,#101c2e 70%,rgba(16,28,46,0));backdrop-filter:blur(6px);z-index:2}
+  .sheet-h .grab{position:absolute;top:-8px;left:50%;transform:translateX(-50%);width:38px;height:4px;border-radius:99px;background:var(--line2)}
+  .sheet-h h3{font-size:15px}
+  .sheet-close{margin-left:auto;width:32px;height:32px;border-radius:9px;border:1px solid var(--line);background:rgba(255,255,255,.04);color:var(--mut);display:grid;place-items:center;flex:0 0 auto}
+  .sheet-sub{font-size:11.5px;color:var(--mut);margin-bottom:12px}
+  .sheet .part{margin-bottom:7px}
+  .sheet-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:12px 0}
+  .sheet-stats div{background:rgba(255,255,255,.03);border:1px solid var(--line);border-radius:10px;padding:8px 10px}
+  .sheet-stats b{display:block;font-size:16px;font-weight:700;font-variant-numeric:tabular-nums}
+  .sheet-stats small{font-size:9.5px;letter-spacing:.07em;text-transform:uppercase;color:var(--dim)}
+
+  /* toast */
+  .toast{position:fixed;left:50%;bottom:22px;transform:translate(-50%,14px);z-index:200;
+    background:#16263c;border:1px solid var(--line2);color:var(--txt);padding:10px 16px;border-radius:11px;font-size:12.5px;font-weight:600;
+    box-shadow:0 12px 30px rgba(0,0,0,.45);opacity:0;pointer-events:none;transition:.22s}
+  .toast.on{opacity:1;transform:translate(-50%,0)}
+
+  /* footer */
+  .foot{margin-top:22px;padding-top:14px;border-top:1px solid var(--line);font-size:11px;color:var(--dim);
+    display:flex;flex-wrap:wrap;gap:8px 14px;align-items:center;justify-content:space-between}
+  .foot a{color:var(--mut);border-bottom:1px dotted var(--line2)}
+  .foot a:hover{color:var(--cyan)}
+
+  /* skeleton */
+  .skel{background:linear-gradient(90deg,rgba(255,255,255,.04),rgba(255,255,255,.09),rgba(255,255,255,.04));
+    background-size:200% 100%;animation:sh 1.2s infinite;border-radius:8px}
+  @keyframes sh{0%{background-position:200% 0}100%{background-position:-200% 0}}
+
+  @media (prefers-reduced-motion:reduce){
+    *{animation-duration:.001s !important;transition-duration:.001s !important}
+  }
+</style>
+</head>
+<body>
+
+<div class="wrap">
+  <header class="top">
+    <div class="top-row">
+      <div class="brand">
+        <div class="logo">J112</div>
+        <div class="brand-txt">
+          <h1>RFI Dashboard</h1>
+          <p id="subtitle">Beam · Plank · Parapet · Cable through</p>
+        </div>
+      </div>
+      <div class="top-actions">
+        <div class="live" id="live" data-state="loading" role="status" aria-live="polite">
+          <span class="dot"></span><span id="liveText">Connecting…</span>
+        </div>
+        <button class="iconbtn" id="refreshBtn" aria-label="Refresh data" title="Refresh from Google Sheets">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-2.6-6.4"/><path d="M21 3v6h-6"/></svg>
+          <span class="lbl">Refresh</span>
+        </button>
+        <button class="iconbtn" id="shareBtn" aria-label="Share dashboard" title="Share dashboard">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12v7a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-7"/><path d="M16 6l-4-4-4 4"/><path d="M12 2v13"/></svg>
+          <span class="lbl">Share</span>
+        </button>
+      </div>
+    </div>
+  </header>
+</div>
+
+<div class="tabs">
+  <div class="tabs-in" role="tablist" aria-label="Dashboard views">
+    <button class="tab" role="tab" data-view="overview" aria-selected="true">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="9" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/><rect x="14" y="12" width="7" height="9" rx="1.5"/><rect x="3" y="16" width="7" height="5" rx="1.5"/></svg>
+      <span class="t">Overview</span>
+    </button>
+    <button class="tab" role="tab" data-view="register" aria-selected="false">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h11l5 5v11H4z"/><path d="M8 9h8M8 13h8M8 17h5"/></svg>
+      <span class="t">RFI Register</span>
+    </button>
+    <button class="tab" role="tab" data-view="parts" aria-selected="false">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18M3 12h18M3 18h18"/></svg>
+      <span class="t">Parts</span>
+    </button>
+  </div>
+</div>
+
+<main class="wrap">
+  <section class="view" id="view-overview" role="tabpanel" aria-label="Overview">
+    <div class="card hero section">
+      <div class="ring" id="coverRing"></div>
+      <div class="hero-body">
+        <h2 id="heroTitle">Loading live sheet…</h2>
+        <p id="heroSub">Reading the master casting record</p>
+        <div class="hero-chips" id="heroChips"></div>
+      </div>
+    </div>
+
+    <div class="grid g4 section" id="kpis"></div>
+
+    <div class="grid g2 section">
+      <div class="card">
+        <div class="card-h"><h3>RFI coverage by component</h3><span class="dim note" style="font-size:10.5px" id="covNote"></span></div>
+        <div class="cov" id="covList"></div>
+      </div>
+      <div class="card">
+        <div class="card-h"><h3>Fabrication status</h3><span class="dim note" style="font-size:10.5px">all parts</span></div>
+        <div class="status-wrap">
+          <div class="donut" id="statusDonut"></div>
+          <div class="legend" id="statusLegend"></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="grid g2 section">
+      <div class="card">
+        <div class="card-h"><h3>Casting output · last 14 months</h3><span class="dim note" style="font-size:10.5px" id="chartPeak"></span></div>
+        <div class="chart" id="castChart"></div>
+        <div class="chart-foot"><span id="chartFrom"></span><span id="chartTo"></span></div>
+      </div>
+      <div class="card">
+        <div class="card-h"><h3>Biggest RFI batches</h3><span class="dim note" style="font-size:10.5px">by parts covered</span></div>
+        <div class="list" id="topBatches"></div>
+      </div>
+    </div>
+
+    <div class="foot">
+      <span id="footUpdated">—</span>
+      <span>Source: <a href="#" id="sheetLink" target="_blank" rel="noopener">Google Sheet · CASTING_RECORD</a></span>
+    </div>
+  </section>
+
+  <section class="view" id="view-register" role="tabpanel" aria-label="RFI Register" hidden>
+    <div class="toolbar">
+      <div class="search">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.2-3.2"/></svg>
+        <input id="regSearch" type="search" inputmode="search" placeholder="Search RFI no., level, station or marking…" autocomplete="off">
+        <button class="clr" id="regClear" aria-label="Clear search">✕</button>
+      </div>
+      <div class="filters" id="kindFilters"></div>
+    </div>
+    <div class="rowmeta">
+      <span class="cnt" id="regCount"></span>
+      <select class="sel" id="regSort" aria-label="Sort RFI list">
+        <option value="num">Sort: RFI number</option>
+        <option value="parts">Sort: most parts</option>
+        <option value="deliv">Sort: least delivered</option>
+        <option value="recent">Sort: most recent cast</option>
+      </select>
+    </div>
+    <div class="rfi-list" id="regList"></div>
+    <div class="empty" id="regEmpty" hidden>No RFI matches this search.</div>
+    <button class="more" id="regMore" hidden>Show more</button>
+  </section>
+
+  <section class="view" id="view-parts" role="tabpanel" aria-label="Parts" hidden>
+    <div class="toolbar">
+      <div class="search">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.2-3.2"/></svg>
+        <input id="partSearch" type="search" inputmode="search" placeholder="Search marking, level, RFI, DO no.…" autocomplete="off">
+        <button class="clr" id="partClear" aria-label="Clear search">✕</button>
+      </div>
+      <div class="filters" id="partFilters"></div>
+      <div class="filters" style="overflow:visible;flex-wrap:wrap">
+        <select class="sel" id="partType" aria-label="Filter by type"><option value="">All types</option></select>
+        <select class="sel" id="partStatus" aria-label="Filter by status">
+          <option value="">All status</option>
+          <option value="DELIVERED">Delivered</option>
+          <option value="CASTED">Casted</option>
+          <option value="NA">Not started</option>
+        </select>
+        <select class="sel" id="partStation" aria-label="Filter by station"><option value="">All stations</option></select>
+      </div>
+    </div>
+    <div class="rowmeta"><span class="cnt" id="partCount"></span></div>
+    <div class="list" id="partList" style="gap:7px"></div>
+    <div class="empty" id="partEmpty" hidden>No part matches these filters.</div>
+    <button class="more" id="partMore" hidden>Load more parts</button>
+  </section>
+</main>
+
+<div class="sheet-wrap" id="sheet" hidden>
+  <div class="sheet-bg" data-close="1"></div>
+  <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="sheetTitle">
+    <div class="sheet-h">
+      <div class="grab"></div>
+      <div style="min-width:0">
+        <h3 id="sheetTitle">RFI</h3>
+        <div class="sheet-sub" id="sheetSub"></div>
+      </div>
+      <button class="sheet-close" data-close="1" aria-label="Close">✕</button>
+    </div>
+    <div class="sheet-stats" id="sheetStats"></div>
+    <div id="sheetBody"></div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+(function(){
+  "use strict";
+
+  var SHEET_ID = "1lmOiNtfsaHI0tMx1BUngM6Ru9HIKx9pQwfBmnsLegIY";
+  var GID = "1579823960";
+  var LIVE_CSV = "https://docs.google.com/spreadsheets/d/" + SHEET_ID + "/export?format=csv&gid=" + GID;
+  var SHEET_URL = "https://docs.google.com/spreadsheets/d/" + SHEET_ID + "/edit?gid=" + GID;
+  var REFRESH_MS = 5 * 60 * 1000;
+
+  var KIND = {
+    cast:             { label: "Casting RFI",      color: "#4da3ff", short: "Casting" },
+    revise:           { label: "Revision",         color: "#ffb454", short: "Revision" },
+    post:             { label: "Post · Plank",     color: "#a78bfa", short: "Post" },
+    delivery_plank:   { label: "Delivery · Plank", color: "#2ee6a8", short: "Del. plank" },
+    delivery_parapet: { label: "Delivery · Parapet", color: "#f5b95c", short: "Del. parapet" },
+    delivery_cable:   { label: "Delivery · Cable", color: "#38d9f5", short: "Del. cable" }
+  };
+  var ALL_KINDS = Object.keys(KIND);
+
+  var state = {
+    parts: [], entries: [], meta: {}, source: "", lastSync: 0, syncError: "",
+    kinds: new Set(ALL_KINDS),
+    regQuery: "", regSort: "num", regLimit: 60,
+    partQuery: "", partType: "", partStatus: "", partStation: "", partMissingOnly: false, partLimit: 40,
+    loading: false
+  };
+
+  var $ = function(s, el){ return (el || document).querySelector(s); };
+  var $$ = function(s, el){ return Array.prototype.slice.call((el || document).querySelectorAll(s)); };
+  var nf = new Intl.NumberFormat("en-US");
+  function fmt(n){ return nf.format(Math.round(n)); }
+  function pct(a, b){ return b ? Math.round((a / b) * 100) : 0; }
+  function esc(s){
+    return String(s == null ? "" : s).replace(/[&<>"']/g, function(c){
+      return ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c];
+    });
+  }
+  function shortDate(iso){
+    if (!iso) return "";
+    var d = new Date(iso + "T00:00:00");
+    if (isNaN(d)) return iso;
+    return d.toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "2-digit" });
+  }
+  function monthKey(iso){ return iso ? iso.slice(0, 7) : ""; }
+
+  /* ---------------- CSV ---------------- */
+  function parseCSV(t){
+    var rows = [], row = [], cur = "", q = false, i, c;
+    for (i = 0; i < t.length; i++){
+      c = t[i];
+      if (q){
+        if (c === '"'){ if (t[i + 1] === '"'){ cur += '"'; i++; } else q = false; }
+        else cur += c;
+      } else if (c === '"') q = true;
+      else if (c === ","){ row.push(cur); cur = ""; }
+      else if (c === "\n"){ row.push(cur); cur = ""; rows.push(row); row = []; }
+      else if (c !== "\r") cur += c;
+    }
+    if (cur !== "" || row.length){ row.push(cur); rows.push(row); }
+    return rows;
+  }
+  function norm(s){ return String(s || "").replace(/\s+/g, " ").trim().toUpperCase(); }
+
+  var MONTHS = { jan:1, feb:2, mar:3, apr:4, may:5, jun:6, jul:7, aug:8, sep:9, oct:10, nov:11, dec:12 };
+  function toISO(s){
+    s = String(s || "").trim();
+    if (!s) return "";
+    var m = s.match(/^(\d{1,2})[-\/]([A-Za-z]{3,})[-\/](\d{2,4})$/);
+    if (m){
+      var mo = MONTHS[m[2].slice(0, 3).toLowerCase()], y = +m[3];
+      if (!mo) return "";
+      if (y < 100) y += 2000;
+      return y + "-" + String(mo).padStart(2, "0") + "-" + String(+m[1]).padStart(2, "0");
+    }
+    m = s.match(/^(\d{4})-(\d{2})-(\d{2})/);
+    if (m) return m[0];
+    var d = new Date(s);
+    return isNaN(d) ? "" : d.toISOString().slice(0, 10);
+  }
+  function clean(v){
+    v = String(v || "").replace(/\s+/g, " ").trim();
+    return v.toUpperCase() === "N/A" ? "" : v;
+  }
+  function catOf(ty){
+    var t = String(ty || "").toLowerCase();
+    if (t.indexOf("parapet") === 0) return "PARAPET";
+    if (t.indexOf("pct") === 0) return "CABLE";
+    return "PLANK";
+  }
+
+  function parseSheet(text){
+    var rows = parseCSV(text);
+    var hi = -1, i, r;
+    for (i = 0; i < Math.min(rows.length, 40); i++){
+      var h = rows[i].map(norm);
+      if (h.indexOf("STATION") > -1 && h.indexOf("RFI_NO") > -1){ hi = i; break; }
+    }
+    if (hi < 0) throw new Error("Header row not found — sheet layout changed");
+
+    var H = rows[hi].map(norm);
+    var col = function(n){ return H.indexOf(n); };
+    var ix = {
+      station: col("STATION"), no: col("NO."), type: col("TYPES"), level: col("LEVEL"),
+      marking: col("MARKING"), status: col("STATUS"), cast: col("DATE_CAST"),
+      do_: col("DO NO"), delivered: col("DATE_DELIVERED"), workers: col("WORKERS"),
+      rfi: col("RFI_NO"), rev: col("REVISE RFI"), post: col("RFI_POST - PLANK"),
+      dlp: col("RFI_DELIVERY - PLANK"), dpp: col("RFI_DELIVERY_PAP"), dct: col("RFI_DELIVERY_PCT"),
+      vol: col("VOL. (M3)"), wt: col("WEIGHT (T)"), remarks: col("REMARKS")
+    };
+    var g = function(row, k){ var j = ix[k]; return j > -1 ? (row[j] || "") : ""; };
+
+    var parts = [];
+    for (i = hi + 1; i < rows.length; i++){
+      r = rows[i];
+      if (!r || !String(g(r, "station")).trim() || !String(g(r, "no")).trim()) continue;
+      parts.push({
+        st: clean(g(r, "station")),
+        no: clean(g(r, "no")),
+        ty: clean(g(r, "type")),
+        lv: clean(g(r, "level")),
+        mk: clean(g(r, "marking")),
+        stt: clean(g(r, "status")) || "NA",
+        cd: toISO(g(r, "cast")),
+        dd: toISO(g(r, "delivered")),
+        wr: clean(g(r, "workers")),
+        rfi: clean(g(r, "rfi")),
+        rev: clean(g(r, "rev")),
+        post: clean(g(r, "post")),
+        dlp: clean(g(r, "dlp")),
+        dpp: clean(g(r, "dpp")),
+        dct: clean(g(r, "dct")),
+        vol: parseFloat(String(g(r, "vol")).replace(/,/g, "")) || 0,
+        wt: parseFloat(String(g(r, "wt")).replace(/,/g, "")) || 0,
+        do_: clean(g(r, "do_")),
+        rm: clean(g(r, "remarks"))
+      });
+    }
+
+    // sheet "Updated :" stamp
+    var updatedLabel = "", updatedISO = "";
+    for (i = 0; i < Math.min(hi, 20); i++){
+      for (var j = 0; j < rows[i].length; j++){
+        if (/^updated/i.test(String(rows[i][j]).trim())){
+          for (var k = j + 1; k < rows[i].length; k++){
+            if (String(rows[i][k]).trim()){ updatedLabel = String(rows[i][k]).trim(); updatedISO = toISO(updatedLabel); break; }
+          }
+        }
+        if (updatedLabel) break;
+      }
+      if (updatedLabel) break;
+    }
+    return {
+      parts: parts,
+      meta: {
+        project: clean(rows[hi - 4] && rows[hi - 4][1]) || "J112",
+        component: clean(rows[hi - 3] && rows[hi - 3][1]) || "",
+        updatedLabel: updatedLabel,
+        updatedISO: updatedISO
+      }
+    };
+  }
+
+  /* ---------------- model ---------------- */
+  var FIELD_KIND = [
+    ["rfi", "cast"], ["rev", "revise"], ["post", "post"],
+    ["dlp", "delivery_plank"], ["dpp", "delivery_parapet"], ["dct", "delivery_cable"]
+  ];
+
+  function hasRfi(p){
+    return !!(p.rfi || p.rev || p.post || p.dlp || p.dpp || p.dct);
+  }
+
+  function buildEntries(parts){
+    var map = Object.create(null);
+    for (var i = 0; i < parts.length; i++){
+      var p = parts[i];
+      for (var f = 0; f < FIELD_KIND.length; f++){
+        var field = FIELD_KIND[f][0], kind = FIELD_KIND[f][1], val = p[field];
+        if (!val) continue;
+        var key = kind + "|" + val;
+        var e = map[key];
+        if (!e){
+          e = map[key] = {
+            id: key, num: val, kind: kind, cat: catOf(p.ty), parts: [],
+            st: { DELIVERED: 0, CASTED: 0, NA: 0 },
+            levels: [], stations: [], first: "", last: ""
+          };
+        }
+        e.parts.push(p);
+        e.st[p.stt] = (e.st[p.stt] || 0) + 1;
+        if (e.levels.indexOf(p.lv) < 0) e.levels.push(p.lv);
+        if (e.stations.indexOf(p.st) < 0) e.stations.push(p.st);
+        if (p.cd){
+          if (!e.first || p.cd < e.first) e.first = p.cd;
+          if (!e.last || p.cd > e.last) e.last = p.cd;
+        }
+      }
+    }
+    var out = [];
+    for (var k in map) out.push(map[k]);
+    return out;
+  }
+
+  function stats(){
+    var parts = state.parts, e = state.entries;
+    var counts = { total: parts.length, withRfi: 0, delivered: 0, casted: 0, na: 0, missing: 0 };
+    var byCat = { PLANK: { total: 0, rfi: 0, del: 0 }, PARAPET: { total: 0, rfi: 0, del: 0 }, CABLE: { total: 0, rfi: 0, del: 0 } };
+    var vol = 0, wt = 0;
+    for (var i = 0; i < parts.length; i++){
+      var p = parts[i], c = catOf(p.ty), has = hasRfi(p);
+      if (has) counts.withRfi++; else counts.missing++;
+      if (p.stt === "DELIVERED"){ counts.delivered++; byCat[c].del++; }
+      else if (p.stt === "CASTED") counts.casted++;
+      else counts.na++;
+      byCat[c].total++;
+      if (has) byCat[c].rfi++;
+      vol += p.vol; wt += p.wt;
+    }
+    var perKind = {};
+    ALL_KINDS.forEach(function(k){ perKind[k] = 0; });
+    e.forEach(function(x){ perKind[x.kind]++; });
+    return { counts: counts, byCat: byCat, perKind: perKind, vol: vol, wt: wt };
+  }
+
+  /* ---------------- live loading ---------------- */
+  function setLive(stateName, text){
+    var el = $("#live");
+    el.setAttribute("data-state", stateName);
+    $("#liveText").textContent = text;
+  }
+
+  function syncInfo(){
+    var s = state;
+    if (!s.lastSync) return "";
+    var ago = Math.round((Date.now() - s.lastSync) / 1000);
+    var t = ago < 45 ? "just now" : ago < 3600 ? Math.round(ago / 60) + "m ago" : Math.round(ago / 3600) + "h ago";
+    return t;
+  }
+
+  function stampLive(){
+    if (state.source === "live"){
+      setLive("live", "Live · updated " + syncInfo());
+    } else if (state.source === "snapshot"){
+      setLive("snapshot", "Saved copy · " + syncInfo());
+    }
+  }
+
+  function loadLive(manual){
+    if (state.loading) return;
+    state.loading = true;
+    setLive("loading", manual ? "Refreshing…" : "Connecting…");
+    var btn = $("#refreshBtn");
+    btn.querySelector("svg").classList.add("spin");
+
+    var ctrl = window.AbortController ? new AbortController() : null;
+    var timer = setTimeout(function(){ if (ctrl) ctrl.abort(); }, 25000);
+
+    fetch(LIVE_CSV + "&cachebust=" + Date.now(), ctrl ? { signal: ctrl.signal, cache: "no-store" } : { cache: "no-store" })
+      .then(function(r){
+        if (!r.ok) throw new Error("HTTP " + r.status);
+        return r.text();
+      })
+      .then(function(text){
+        if (text.indexOf("STATION") < 0) throw new Error("Sheet did not return the casting record");
+        var parsed = parseSheet(text);
+        if (!parsed.parts.length) throw new Error("No rows in sheet");
+        apply(parsed, "live");
+      })
+      .catch(function(err){
+        state.syncError = String(err && err.message || err);
+        if (state.parts.length) { stampLive(); toast("Live sync failed — showing last data"); }
+        else loadSnapshot();
+      })
+      .then(function(){
+        clearTimeout(timer);
+        state.loading = false;
+        btn.querySelector("svg").classList.remove("spin");
+      });
+  }
+
+  function loadSnapshot(){
+    setLive("loading", "Loading saved copy…");
+    fetch("data.json", { cache: "no-store" })
+      .then(function(r){ if (!r.ok) throw new Error("HTTP " + r.status); return r.json(); })
+      .then(function(j){
+        apply({ parts: j.parts, meta: {
+          project: j.project, component: j.component,
+          updatedLabel: j.updatedLabel, updatedISO: j.updatedISO
+        } }, "snapshot");
+      })
+      .catch(function(){
+        setLive("snapshot", "Offline");
+        toast("Could not load data. Check your connection.");
+      });
+  }
+
+  function apply(parsed, source){
+    state.parts = parsed.parts;
+    state.meta = parsed.meta || {};
+    state.entries = buildEntries(parsed.parts);
+    state.source = source;
+    state.lastSync = Date.now();
+    state.regLimit = 60;
+    state.partLimit = 40;
+    stampLive();
+    fillSelects();
+    renderAll();
+  }
+
+  /* ---------------- render: overview ---------------- */
+  function renderAll(){
+    renderOverview();
+    renderRegister();
+    renderParts();
+  }
+
+  function renderOverview(){
+    var s = stats(), c = s.counts, m = state.meta;
+    $("#subtitle").textContent = (m.component || "Beam · Plank · Parapet · Cable through");
+    $("#footUpdated").textContent = m.updatedLabel
+      ? "Sheet updated " + (m.updatedISO ? shortDate(m.updatedISO) : m.updatedLabel)
+      : "Sheet updated —";
+
+    var cover = pct(c.withRfi, c.total);
+    var R = 54, CIRC = 2 * Math.PI * R;
+    $("#coverRing").innerHTML =
+      '<svg width="132" height="132" viewBox="0 0 132 132">' +
+        '<circle cx="66" cy="66" r="' + R + '" fill="none" stroke="rgba(255,255,255,.07)" stroke-width="11"/>' +
+        '<circle cx="66" cy="66" r="' + R + '" fill="none" stroke="url(#rg)" stroke-width="11" stroke-linecap="round" ' +
+          'stroke-dasharray="' + (CIRC * cover / 100).toFixed(1) + ' ' + CIRC.toFixed(1) + '"/>' +
+        '<defs><linearGradient id="rg" x1="0" y1="0" x2="1" y2="1">' +
+          '<stop offset="0" stop-color="#19c78a"/><stop offset="1" stop-color="#7bffd4"/></linearGradient></defs>' +
+      '</svg>' +
+      '<div class="ring-txt"><b>' + cover + '%</b><small>RFI issued</small></div>';
+
+    $("#heroTitle").innerHTML = '<span class="num">' + fmt(c.withRfi) + '</span> of <span class="num">' + fmt(c.total) + '</span> parts covered by an RFI';
+    $("#heroSub").textContent = fmt(c.missing) + " parts still need an RFI number · " + fmt(state.entries.length) + " RFI references tracked";
+
+    var kinds = ALL_KINDS.map(function(k){
+      return '<button class="chip" data-herokind="' + k + '" style="color:' + KIND[k].color + '"><i></i>' + KIND[k].short + ' <b class="num" style="color:#e9f0fb;margin-left:2px">' + fmt(s.perKind[k]) + '</b></button>';
+    }).join("");
+    $("#heroChips").innerHTML = kinds;
+
+    var kpis = [
+      { k: "Total parts", v: fmt(c.total), s: fmt(s.vol) + " m³ · " + fmt(s.wt) + " T", cls: "" },
+      { k: "RFI numbers", v: fmt(state.entries.length), s: fmt(s.perKind.cast) + " casting · " + fmt(s.perKind.delivery_plank + s.perKind.delivery_parapet + s.perKind.delivery_cable) + " delivery", cls: "info" },
+      { k: "Missing RFI", v: fmt(c.missing), s: c.missing ? "needs action" : "all covered", cls: c.missing ? "warn arrow" : "accent", view: "parts", missing: true },
+      { k: "Delivered", v: pct(c.delivered, c.total) + "%", s: fmt(c.delivered) + " of " + fmt(c.total) + " parts", cls: "accent arrow", view: "parts" }
+    ];
+    $("#kpis").innerHTML = kpis.map(function(x){
+      return '<button class="kpi ' + x.cls + '" ' + (x.view ? 'data-goto="' + x.view + '"' : 'data-goto="register"') + (x.missing ? ' data-missing="1"' : '') + '>' +
+        '<div class="k">' + x.k + '</div>' +
+        '<div class="v num">' + x.v + '</div>' +
+        '<div class="s">' + x.s + '</div>' +
+      '</button>';
+    }).join("");
+
+    // coverage by component
+    var catOrder = ["CABLE", "PARAPET", "PLANK"];
+    var catName = { CABLE: "Cable through", PARAPET: "Parapet", PLANK: "Plank & beam" };
+    var catClass = { CABLE: "blue", PARAPET: "pap", PLANK: "" };
+    $("#covList").innerHTML = catOrder.map(function(cat){
+      var d = s.byCat[cat], p = pct(d.rfi, d.total), dl = pct(d.del, d.total);
+      return '<div class="cov-row">' +
+        '<div class="cl"><span class="nm"><i style="background:' + (cat === "CABLE" ? "#4da3ff" : cat === "PARAPET" ? "#f5b95c" : "#2ee6a8") + '"></i>' + catName[cat] + '</span>' +
+        '<span class="vv"><b class="num">' + fmt(d.rfi) + '</b>/' + fmt(d.total) + ' · ' + p + '%</span></div>' +
+        '<div class="bar ' + catClass[cat] + '"><span style="width:' + p + '%"></span></div>' +
+        '<div class="vv" style="margin-top:5px;font-size:10.5px">delivered ' + dl + '%</div>' +
+      '</div>';
+    }).join("");
+    $("#covNote").textContent = "of parts, by component";
+
+    // status donut
+    var seg = [
+      { n: "Delivered", v: c.delivered, col: "#2ee6a8" },
+      { n: "Casted", v: c.casted, col: "#4da3ff" },
+      { n: "Not started", v: c.na, col: "#3b4f69" }
+    ];
+    var R2 = 40, C2 = 2 * Math.PI * R2, off = 0;
+    var circles = seg.map(function(x){
+      var frac = c.total ? x.v / c.total : 0;
+      var dash = (frac * C2).toFixed(2) + " " + C2.toFixed(2);
+      var el = '<circle cx="56" cy="56" r="' + R2 + '" fill="none" stroke="' + x.col + '" stroke-width="13" ' +
+        'stroke-dasharray="' + dash + '" stroke-dashoffset="' + (-off).toFixed(2) + '" transform="rotate(-90 56 56)"/>';
+      off += frac * C2;
+      return el;
+    }).join("");
+    $("#statusDonut").innerHTML =
+      '<svg width="112" height="112" viewBox="0 0 112 112"><circle cx="56" cy="56" r="' + R2 + '" fill="none" stroke="rgba(255,255,255,.05)" stroke-width="13"/>' + circles + '</svg>' +
+      '<div class="donut-txt"><b class="num">' + pct(c.delivered, c.total) + '%</b><small>delivered</small></div>';
+    $("#statusLegend").innerHTML = seg.map(function(x){
+      return '<div class="lg"><i style="background:' + x.col + '"></i>' + x.n +
+        '<span class="n num">' + fmt(x.v) + '</span><span class="pc num">' + pct(x.v, c.total) + '%</span></div>';
+    }).join("");
+
+    // monthly cast chart
+    var buckets = {};
+    var maxM = "";
+    state.parts.forEach(function(p){
+      if (!p.cd) return;
+      var k = monthKey(p.cd);
+      buckets[k] = (buckets[k] || 0) + 1;
+      if (k > maxM) maxM = k;
+    });
+    var cols = [], peak = 0, ck;
+    if (maxM){
+      var y = +maxM.slice(0, 4), mo = +maxM.slice(5, 7);
+      for (var i = 13; i >= 0; i--){
+        var d = new Date(y, mo - 1 - i, 1);
+        var key = d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0");
+        var v = buckets[key] || 0;
+        if (v > peak) peak = v;
+        cols.push({ key: key, v: v, label: d.toLocaleDateString("en-GB", { month: "short" }) });
+      }
+    }
+    $("#castChart").innerHTML = cols.map(function(x, idx){
+      var h = peak ? Math.max(2, Math.round((x.v / peak) * 92)) : 2;
+      var showLabel = idx % 2 === 0 || cols.length < 8;
+      return '<div class="cbar" title="' + x.key + ': ' + x.v + ' parts">' +
+        '<div class="b" style="height:' + h + 'px"></div>' +
+        '<div class="l">' + (showLabel ? x.label : "") + '</div>' +
+      '</div>';
+    }).join("");
+    $("#chartPeak").textContent = peak ? "peak " + fmt(peak) + "/month" : "";
+    $("#chartFrom").textContent = cols.length ? cols[0].label + " " + cols[0].key.slice(2, 4) : "";
+    $("#chartTo").textContent = cols.length ? cols[cols.length - 1].label + " " + cols[cols.length - 1].key.slice(2, 4) : "";
+
+    // biggest batches
+    var top = state.entries.filter(function(e){ return e.kind === "cast"; })
+      .sort(function(a, b){ return b.parts.length - a.parts.length; }).slice(0, 6);
+    var maxTop = top.length ? top[0].parts.length : 1;
+    $("#topBatches").innerHTML = top.map(function(e, i){
+      var d = e.st.DELIVERED, p = pct(d, e.parts.length);
+      return '<div class="lrow"><span class="idx num">' + (i + 1) + '</span><div class="mid">' +
+        '<div class="t"><b>RFI ' + esc(e.num) + '</b><span>' + fmt(e.parts.length) + ' parts · ' + p + '% del.</span></div>' +
+        '<div class="bar" style="height:5px"><span style="width:' + Math.round((e.parts.length / maxTop) * 100) + '%"></span></div>' +
+      '</div></div>';
+    }).join("") || '<div class="empty">No casting RFIs yet</div>';
+
+    $("#sheetLink").href = SHEET_URL;
+  }
+
+  /* ---------------- render: register ---------------- */
+  function natural(a, b){
+    var ma = String(a).match(/^([A-Za-z]*)(\d+)(.*)$/);
+    var mb = String(b).match(/^([A-Za-z]*)(\d+)(.*)$/);
+    if (ma && mb){
+      if (ma[1] !== mb[1]) return ma[1] < mb[1] ? -1 : 1;
+      var d = +ma[2] - +mb[2];
+      if (d) return d;
+      return ma[3].localeCompare(mb[3]);
+    }
+    return String(a).localeCompare(String(b));
+  }
+
+  function renderKindFilters(){
+    var per = {};
+    ALL_KINDS.forEach(function(k){ per[k] = 0; });
+    state.entries.forEach(function(e){ per[e.kind]++; });
+    $("#kindFilters").innerHTML = ALL_KINDS.map(function(k){
+      var on = state.kinds.has(k);
+      return '<button class="fchip" data-kind="' + k + '" aria-pressed="' + on + '">' +
+        '<i style="background:' + KIND[k].color + '"></i>' + KIND[k].short +
+        ' <span class="c num">' + fmt(per[k]) + '</span></button>';
+    }).join("");
+  }
+
+  function regFiltered(){
+    var q = state.regQuery.trim().toLowerCase();
+    var list = state.entries.filter(function(e){
+      if (!state.kinds.has(e.kind)) return false;
+      if (!q) return true;
+      var hay = [e.num, e.kind, KIND[e.kind].label, e.cat].concat(e.levels, e.stations, e.parts.slice(0, 12).map(function(p){ return p.mk + " " + p.rfi; })).join(" ").toLowerCase();
+      return hay.indexOf(q) > -1;
+    });
+    var sort = state.regSort;
+    list.sort(function(a, b){
+      if (sort === "parts") return b.parts.length - a.parts.length || natural(a.num, b.num);
+      if (sort === "deliv"){
+        var pa = a.parts.length ? a.st.DELIVERED / a.parts.length : 0;
+        var pb = b.parts.length ? b.st.DELIVERED / b.parts.length : 0;
+        return pa - pb || b.parts.length - a.parts.length;
+      }
+      if (sort === "recent") return (b.last || "").localeCompare(a.last || "") || natural(a.num, b.num);
+      return natural(a.num, b.num) || a.kind.localeCompare(b.kind);
+    });
+    return list;
+  }
+
+  function renderRegister(){
+    renderKindFilters();
+    var list = regFiltered();
+    var shown = list.slice(0, state.regLimit);
+    $("#regCount").innerHTML = "<b>" + fmt(list.length) + "</b> RFI numbers" + (list.length !== state.entries.length ? " of " + fmt(state.entries.length) : "");
+    $("#regEmpty").hidden = list.length > 0;
+
+    $("#regList").innerHTML = shown.map(function(e){
+      var n = e.parts.length, d = e.st.DELIVERED, p = pct(d, n);
+      var scope = e.levels.length <= 2 ? e.levels.join(", ") : e.levels.length + " levels";
+      var mark = n === 1 && e.parts[0] ? e.parts[0].mk : "";
+      var title = esc(e.num) + " · " + KIND[e.kind].label;
+      return '<button class="rfi" data-id="' + esc(e.id) + '" data-k="' + e.kind + '" title="' + title + '">' +
+        '<div class="rfi-top">' +
+          '<span class="rfi-no num">' + esc(e.num) + '</span>' +
+          '<span class="rfi-kind">' + KIND[e.kind].label + '</span>' +
+          '<span class="chip" style="margin-left:auto"><i style="background:' + (e.cat === "CABLE" ? "#4da3ff" : e.cat === "PARAPET" ? "#f5b95c" : "#2ee6a8") + '"></i>' + e.cat + '</span>' +
+        '</div>' +
+        '<div class="rfi-body">' +
+          '<span class="meta"><b class="num">' + fmt(n) + '</b> part' + (n === 1 ? "" : "s") + ' · ' + esc(e.stations.join(", ")) + ' · ' + esc(scope) + (mark ? ' · ' + esc(mark) : "") + '</span>' +
+          '<span class="mini-bar"><span style="width:' + p + '%"></span></span>' +
+          '<span class="rfi-pct num">' + p + '%</span>' +
+        '</div>' +
+      '</button>';
+    }).join("");
+
+    var more = $("#regMore");
+    more.hidden = list.length <= state.regLimit;
+    more.textContent = "Show " + Math.min(60, list.length - state.regLimit) + " more · " + (list.length - state.regLimit) + " left";
+  }
+
+  /* ---------------- render: parts ---------------- */
+  function fillSelects(){
+    var types = {}, stations = {};
+    state.parts.forEach(function(p){ types[p.ty] = 1; stations[p.st] = 1; });
+    var tSel = $("#partType"), sSel = $("#partStation");
+    tSel.innerHTML = '<option value="">All types</option>' + Object.keys(types).sort().map(function(t){
+      return '<option value="' + esc(t) + '">' + esc(t) + '</option>';
+    }).join("");
+    sSel.innerHTML = '<option value="">All stations</option>' + Object.keys(stations).sort().map(function(t){
+      return '<option value="' + esc(t) + '">' + esc(t) + '</option>';
+    }).join("");
+  }
+
+  function renderPartFilters(){
+    var missing = state.parts.filter(function(p){ return !hasRfi(p); }).length;
+    $("#partFilters").innerHTML =
+      '<button class="fchip" data-pf="missing" aria-pressed="' + state.partMissingOnly + '"><i style="background:#ffb454"></i>Missing RFI <span class="c num">' + fmt(missing) + '</span></button>' +
+      '<button class="fchip" data-pf="delivered" aria-pressed="' + (state.partStatus === "DELIVERED") + '"><i style="background:#2ee6a8"></i>Delivered only</button>';
+  }
+
+  function partsFiltered(){
+    var q = state.partQuery.trim().toLowerCase();
+    return state.parts.filter(function(p){
+      if (state.partMissingOnly && hasRfi(p)) return false;
+      if (state.partType && p.ty !== state.partType) return false;
+      if (state.partStatus && p.stt !== state.partStatus) return false;
+      if (state.partStation && p.st !== state.partStation) return false;
+      if (!q) return true;
+      var hay = [p.no, p.ty, p.lv, p.mk, p.st, p.stt, p.rfi, p.rev, p.post, p.dlp, p.dpp, p.dct, p.do_].join(" ").toLowerCase();
+      return hay.indexOf(q) > -1;
+    });
+  }
+
+  function partRow(p){
+    var tag = p.rfi ? '<span class="rfi-tag">RFI ' + esc(p.rfi) + '</span>' : '<span class="rfi-tag" style="color:#ffcf92;background:rgba(255,180,84,.08);border-color:rgba(255,180,84,.24)">no RFI</span>';
+    var dl = p.dlp || p.dpp || p.dct;
+    var extra = [];
+    if (p.rev) extra.push("rev " + esc(p.rev));
+    if (p.post) extra.push("post " + esc(p.post));
+    if (dl) extra.push("del " + esc(dl));
+    return '<div class="part">' +
+      '<div class="p1">#' + esc(p.no) + ' <span class="ty">' + esc(p.ty) + '</span> ' + tag + '</div>' +
+      '<span class="stt ' + esc(p.stt) + '">' + esc(p.stt === "NA" ? "NOT STARTED" : p.stt) + '</span>' +
+      '<div class="p2">' + esc(p.mk || "—") +
+        '<span class="sep">·</span>' + esc(p.lv) +
+        '<span class="sep">·</span>' + esc(p.st) +
+        (p.cd ? '<span class="sep">·</span>cast ' + shortDate(p.cd) : "") +
+        (extra.length ? '<span class="sep">·</span>' + extra.join(" · ") : "") +
+      '</div>' +
+    '</div>';
+  }
+
+  function renderParts(){
+    renderPartFilters();
+    var list = partsFiltered();
+    var shown = list.slice(0, state.partLimit);
+    $("#partCount").innerHTML = "<b>" + fmt(list.length) + "</b> parts" + (list.length !== state.parts.length ? " of " + fmt(state.parts.length) : "");
+    $("#partEmpty").hidden = list.length > 0;
+    $("#partList").innerHTML = shown.map(partRow).join("");
+    var more = $("#partMore");
+    more.hidden = list.length <= state.partLimit;
+    more.textContent = "Load more · " + fmt(list.length - state.partLimit) + " remaining";
+  }
+
+  /* ---------------- drawer ---------------- */
+  function openSheet(entry){
+    $("#sheetTitle").textContent = "RFI " + entry.num;
+    $("#sheetSub").textContent = KIND[entry.kind].label + " · " + entry.cat + " · " + fmt(entry.parts.length) + " part" + (entry.parts.length === 1 ? "" : "s");
+    $("#sheetStats").innerHTML =
+      '<div><b class="num">' + fmt(entry.parts.length) + '</b><small>Parts</small></div>' +
+      '<div><b class="num" style="color:#2ee6a8">' + fmt(entry.st.DELIVERED) + '</b><small>Delivered</small></div>' +
+      '<div><b class="num" style="color:#4da3ff">' + fmt(entry.st.CASTED) + '</b><small>Casted</small></div>';
+    var parts = entry.parts.slice().sort(function(a, b){ return natural(a.no, b.no) || a.lv.localeCompare(b.lv); });
+    var body = parts.slice(0, 250).map(partRow).join("");
+    if (parts.length > 250) body += '<div class="empty">' + fmt(parts.length - 250) + ' more parts — narrow the search in the Parts tab.</div>';
+    $("#sheetBody").innerHTML = body;
+    $("#sheet").hidden = false;
+    document.body.style.overflow = "hidden";
+  }
+  function closeSheet(){
+    $("#sheet").hidden = true;
+    document.body.style.overflow = "";
+  }
+
+  var toastTimer = null;
+  function toast(msg){
+    var t = $("#toast");
+    t.textContent = msg;
+    t.classList.add("on");
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(function(){ t.classList.remove("on"); }, 2400);
+  }
+
+  /* ---------------- views ---------------- */
+  function showView(name, keepScroll){
+    if (["overview", "register", "parts"].indexOf(name) < 0) name = "overview";
+    $$(".tab").forEach(function(b){ b.setAttribute("aria-selected", String(b.dataset.view === name)); });
+    $$(".view").forEach(function(v){ v.hidden = v.id !== "view-" + name; });
+    if (name === "register") renderRegister();
+    if (name === "parts") renderParts();
+    if (history.replaceState) history.replaceState(null, "", name === "overview" ? location.pathname + location.search : "#" + name);
+    if (!keepScroll) window.scrollTo({ top: 0, behavior: "smooth" });
+  }
+
+  /* ---------------- events ---------------- */
+  document.addEventListener("click", function(ev){
+    var tab = ev.target.closest(".tab");
+    if (tab){ showView(tab.dataset.view); return; }
+
+    var fk = ev.target.closest("[data-kind]");
+    if (fk){
+      var k = fk.dataset.kind;
+      if (state.kinds.has(k)) state.kinds.delete(k); else state.kinds.add(k);
+      if (!state.kinds.size) ALL_KINDS.forEach(function(x){ state.kinds.add(x); });
+      state.regLimit = 60;
+      renderRegister();
+      return;
+    }
+
+    var pf = ev.target.closest("[data-pf]");
+    if (pf){
+      if (pf.dataset.pf === "missing") state.partMissingOnly = !state.partMissingOnly;
+      if (pf.dataset.pf === "delivered") state.partStatus = state.partStatus === "DELIVERED" ? "" : "DELIVERED";
+      $("#partStatus").value = state.partStatus;
+      state.partLimit = 40;
+      renderParts();
+      return;
+    }
+
+    var goto = ev.target.closest("[data-goto]");
+    if (goto){
+      if (goto.dataset.missing){ state.partMissingOnly = true; state.partStatus = ""; $("#partStatus").value = ""; }
+      showView(goto.dataset.goto);
+      renderParts();
+      return;
+    }
+
+    var hk = ev.target.closest("[data-herokinds]");
+    var hk2 = ev.target.closest("[data-herokind]");
+    if (hk || hk2){
+      var kk = (hk || hk2).dataset.herokind;
+      state.kinds = new Set([kk]);
+      state.regQuery = "";
+      $("#regSearch").value = "";
+      $("#regClear").classList.remove("on");
+      state.regLimit = 60;
+      showView("register");
+      return;
+    }
+
+    var rfi = ev.target.closest(".rfi");
+    if (rfi){
+      var e = state.entries.filter(function(x){ return x.id === rfi.dataset.id; })[0];
+      if (e) openSheet(e);
+      return;
+    }
+
+    if (ev.target.closest("[data-close]")){ closeSheet(); return; }
+  });
+
+  $("#regSearch").addEventListener("input", function(e){
+    state.regQuery = e.target.value;
+    state.regLimit = 60;
+    $("#regClear").classList.toggle("on", !!state.regQuery);
+    renderRegister();
+  });
+  $("#regClear").addEventListener("click", function(){
+    $("#regSearch").value = ""; state.regQuery = ""; $("#regClear").classList.remove("on"); renderRegister();
+  });
+  $("#regSort").addEventListener("change", function(e){ state.regSort = e.target.value; state.regLimit = 60; renderRegister(); });
+  $("#regMore").addEventListener("click", function(){ state.regLimit += 60; renderRegister(); });
+
+  $("#partSearch").addEventListener("input", function(e){
+    state.partQuery = e.target.value;
+    state.partLimit = 40;
+    $("#partClear").classList.toggle("on", !!state.partQuery);
+    renderParts();
+  });
+  $("#partClear").addEventListener("click", function(){
+    $("#partSearch").value = ""; state.partQuery = ""; $("#partClear").classList.remove("on"); renderParts();
+  });
+  $("#partType").addEventListener("change", function(e){ state.partType = e.target.value; state.partLimit = 40; renderParts(); });
+  $("#partStatus").addEventListener("change", function(e){ state.partStatus = e.target.value; state.partLimit = 40; renderParts(); });
+  $("#partStation").addEventListener("change", function(e){ state.partStation = e.target.value; state.partLimit = 40; renderParts(); });
+  $("#partMore").addEventListener("click", function(){ state.partLimit += 60; renderParts(); });
+
+  $("#refreshBtn").addEventListener("click", function(){ loadLive(true); });
+
+  $("#shareBtn").addEventListener("click", function(){
+    var data = { title: "J112 RFI Dashboard", text: "Live RFI tracker for J112 precast works", url: location.href };
+    if (navigator.share){
+      navigator.share(data).catch(function(){});
+    } else if (navigator.clipboard && navigator.clipboard.writeText){
+      navigator.clipboard.writeText(location.href).then(function(){
+        toast("Link copied — paste it in WhatsApp or email");
+      }).catch(function(){ toast(location.href); });
+    } else {
+      toast(location.href);
+    }
+  });
+
+  document.addEventListener("keydown", function(e){
+    if (e.key === "Escape") closeSheet();
+    if (e.key === "/" && document.activeElement.tagName !== "INPUT"){
+      e.preventDefault();
+      var v = $$(".view").filter(function(x){ return !x.hidden; })[0];
+      var input = v && v.querySelector("input[type=search]");
+      if (input) input.focus();
+    }
+  });
+
+  // auto refresh (paused when tab hidden)
+  setInterval(function(){
+    if (document.hidden) return;
+    if (Date.now() - state.lastSync > REFRESH_MS) loadLive(false);
+  }, 30000);
+
+  document.addEventListener("visibilitychange", function(){
+    if (!document.hidden && Date.now() - state.lastSync > REFRESH_MS) loadLive(false);
+  });
+
+  window.addEventListener("hashchange", function(){
+    showView((location.hash || "").replace("#", ""), true);
+  });
+
+  // boot
+  var initialView = (location.hash || "").replace("#", "");
+  if (initialView) showView(initialView, true);
+  loadLive(false);
+})();
+</script>
+</body>
+</html>
