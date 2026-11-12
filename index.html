@@ -772,13 +772,13 @@
   }
 
   function apply(parsed, source){
+    var first = !state.parts.length;
     state.parts = parsed.parts;
     state.meta = parsed.meta || {};
     state.entries = buildEntries(parsed.parts);
     state.source = source;
     state.lastSync = Date.now();
-    state.regLimit = 60;
-    state.partLimit = 40;
+    if (first){ state.regLimit = 60; state.partLimit = 40; }
     stampLive();
     fillSelects();
     renderAll();
@@ -819,13 +819,13 @@
     $("#heroChips").innerHTML = kinds;
 
     var kpis = [
-      { k: "Total parts", v: fmt(c.total), s: fmt(s.vol) + " m³ · " + fmt(s.wt) + " T", cls: "" },
-      { k: "RFI numbers", v: fmt(state.entries.length), s: fmt(s.perKind.cast) + " casting · " + fmt(s.perKind.delivery_plank + s.perKind.delivery_parapet + s.perKind.delivery_cable) + " delivery", cls: "info" },
+      { k: "Total parts", v: fmt(c.total), s: fmt(s.vol) + " m³ · " + fmt(s.wt) + " T", cls: "arrow", view: "parts" },
+      { k: "RFI numbers", v: fmt(state.entries.length), s: fmt(s.perKind.cast) + " casting · " + fmt(s.perKind.delivery_plank + s.perKind.delivery_parapet + s.perKind.delivery_cable) + " delivery", cls: "info arrow", view: "register" },
       { k: "Missing RFI", v: fmt(c.missing), s: c.missing ? "needs action" : "all covered", cls: c.missing ? "warn arrow" : "accent", view: "parts", missing: true },
       { k: "Delivered", v: pct(c.delivered, c.total) + "%", s: fmt(c.delivered) + " of " + fmt(c.total) + " parts", cls: "accent arrow", view: "parts" }
     ];
     $("#kpis").innerHTML = kpis.map(function(x){
-      return '<button class="kpi ' + x.cls + '" ' + (x.view ? 'data-goto="' + x.view + '"' : 'data-goto="register"') + (x.missing ? ' data-missing="1"' : '') + '>' +
+      return '<button class="kpi ' + x.cls + '" data-goto="' + x.view + '"' + (x.missing ? ' data-missing="1"' : '') + '>' +
         '<div class="k">' + x.k + '</div>' +
         '<div class="v num">' + x.v + '</div>' +
         '<div class="s">' + x.s + '</div>' +
@@ -1006,6 +1006,9 @@
     sSel.innerHTML = '<option value="">All stations</option>' + Object.keys(stations).sort().map(function(t){
       return '<option value="' + esc(t) + '">' + esc(t) + '</option>';
     }).join("");
+    tSel.value = state.partType;
+    sSel.value = state.partStation;
+    $("#partStatus").value = state.partStatus;
   }
 
   function renderPartFilters(){
